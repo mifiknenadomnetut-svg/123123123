@@ -1,0 +1,137 @@
+{% extends "base.html" %}
+{% block title %}Рейтинг — TypeRace{% endblock %}
+
+{% block content %}
+<div class="leaderboard-page">
+
+  <div class="lb-header">
+    <h1>Рейтинг игроков</h1>
+    {% if rank %}
+    <p class="lb-rank-hint">Твоё место в общем зачёте: <strong>#{{ rank['rank'] }}</strong></p>
+    {% endif %}
+  </div>
+
+  <!-- Tabs -->
+  <div class="lb-tabs">
+    <button class="lb-tab active" data-tab="all">Все лучшие</button>
+    <button class="lb-tab" data-tab="easy">🌱 Легко</button>
+    <button class="lb-tab" data-tab="medium">⚡ Средне</button>
+    <button class="lb-tab" data-tab="hard">🔥 Сложно</button>
+  </div>
+
+  <!-- All -->
+  <div class="lb-panel active" id="tab-all">
+    <div class="card lb-card">
+      <h2 class="section-title">Топ-10 лучших одиночных результатов</h2>
+      {% if top_all %}
+      <table class="data-table">
+        <thead>
+          <tr><th>#</th><th>Игрок</th><th>Зн/мин</th><th>Точность</th><th>Сложность</th><th>Дата</th></tr>
+        </thead>
+        <tbody>
+          {% for r in top_all %}
+          <tr class="{% if loop.index <= 3 %}top-{{ loop.index }}{% endif %}">
+            <td class="rank-num">
+              {% if loop.index == 1 %}🥇{% elif loop.index == 2 %}🥈{% elif loop.index == 3 %}🥉{% else %}{{ loop.index }}{% endif %}
+            </td>
+            <td class="td-user">
+              <span class="avatar-chip sm">{{ r['username'][0]|upper }}</span>
+              {{ r['username'] }}
+              {% if r['username'] == session.username %}<span class="you-badge">вы</span>{% endif %}
+            </td>
+            <td class="td-wpm">{{ r['wpm'] }}</td>
+            <td>{{ r['accuracy'] }}%</td>
+            <td>
+              <span class="diff-pill diff-{{ r['difficulty'] }}">
+                {% if r['difficulty']=='easy' %}🌱{% elif r['difficulty']=='medium' %}⚡{% else %}🔥{% endif %}
+              </span>
+            </td>
+            <td class="td-dim">{{ r['timestamp'][:10] }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+      {% else %}
+      <p class="empty-state">Пока нет результатов. <a href="/">Стань первым!</a></p>
+      {% endif %}
+    </div>
+  </div>
+
+  <!-- Easy -->
+  <div class="lb-panel" id="tab-easy">
+    <div class="card lb-card">
+      <h2 class="section-title">🌱 Топ-10 — Легкий уровень</h2>
+      {% if top_easy %}
+      <table class="data-table">
+        <thead><tr><th>#</th><th>Игрок</th><th>Лучший зн/мин</th></tr></thead>
+        <tbody>
+          {% for r in top_easy %}
+          <tr class="{% if loop.index <= 3 %}top-{{ loop.index }}{% endif %}">
+            <td class="rank-num">{% if loop.index==1%}🥇{%elif loop.index==2%}🥈{%elif loop.index==3%}🥉{%else%}{{loop.index}}{%endif%}</td>
+            <td class="td-user"><span class="avatar-chip sm">{{r['username'][0]|upper}}</span>{{r['username']}}{% if r['username']==session.username %}<span class="you-badge">вы</span>{%endif%}</td>
+            <td class="td-wpm">{{ r['wpm'] }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+      {% else %}<p class="empty-state">Нет данных</p>{% endif %}
+    </div>
+  </div>
+
+  <!-- Medium -->
+  <div class="lb-panel" id="tab-medium">
+    <div class="card lb-card">
+      <h2 class="section-title">⚡ Топ-10 — Средний уровень</h2>
+      {% if top_medium %}
+      <table class="data-table">
+        <thead><tr><th>#</th><th>Игрок</th><th>Лучший зн/мин</th></tr></thead>
+        <tbody>
+          {% for r in top_medium %}
+          <tr class="{% if loop.index <= 3 %}top-{{ loop.index }}{% endif %}">
+            <td class="rank-num">{% if loop.index==1%}🥇{%elif loop.index==2%}🥈{%elif loop.index==3%}🥉{%else%}{{loop.index}}{%endif%}</td>
+            <td class="td-user"><span class="avatar-chip sm">{{r['username'][0]|upper}}</span>{{r['username']}}{% if r['username']==session.username %}<span class="you-badge">вы</span>{%endif%}</td>
+            <td class="td-wpm">{{ r['wpm'] }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+      {% else %}<p class="empty-state">Нет данных</p>{% endif %}
+    </div>
+  </div>
+
+  <!-- Hard -->
+  <div class="lb-panel" id="tab-hard">
+    <div class="card lb-card">
+      <h2 class="section-title">🔥 Топ-10 — Сложный уровень</h2>
+      {% if top_hard %}
+      <table class="data-table">
+        <thead><tr><th>#</th><th>Игрок</th><th>Лучший зн/мин</th></tr></thead>
+        <tbody>
+          {% for r in top_hard %}
+          <tr class="{% if loop.index <= 3 %}top-{{ loop.index }}{% endif %}">
+            <td class="rank-num">{% if loop.index==1%}🥇{%elif loop.index==2%}🥈{%elif loop.index==3%}🥉{%else%}{{loop.index}}{%endif%}</td>
+            <td class="td-user"><span class="avatar-chip sm">{{r['username'][0]|upper}}</span>{{r['username']}}{% if r['username']==session.username %}<span class="you-badge">вы</span>{%endif%}</td>
+            <td class="td-wpm">{{ r['wpm'] }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+      {% else %}<p class="empty-state">Нет данных</p>{% endif %}
+    </div>
+  </div>
+
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.querySelectorAll('.lb-tab').forEach(tab => {
+  tab.addEventListener('click', () => {
+    document.querySelectorAll('.lb-tab').forEach(t => t.classList.remove('active'));
+    document.querySelectorAll('.lb-panel').forEach(p => p.classList.remove('active'));
+    tab.classList.add('active');
+    document.getElementById('tab-' + tab.dataset.tab).classList.add('active');
+  });
+});
+</script>
+{% endblock %}

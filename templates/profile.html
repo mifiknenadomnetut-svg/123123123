@@ -1,0 +1,155 @@
+{% extends "base.html" %}
+{% block title %}Профиль — {{ user['username'] }}{% endblock %}
+
+{% block head %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+{% endblock %}
+
+{% block content %}
+<div class="profile-page">
+
+  <!-- Header -->
+  <div class="profile-header card">
+    <div class="profile-avatar">{{ user['username'][0]|upper }}</div>
+    <div class="profile-info">
+      <h1 class="profile-name">{{ user['username'] }}</h1>
+      <p class="profile-since">На сайте с {{ user['created_at'][:10] }}</p>
+    </div>
+    {% if stats %}
+    <div class="profile-hero-stats">
+      <div class="hero-stat">
+        <span class="hs-val">{{ stats['best_wpm'] or 0 }}</span>
+        <span class="hs-lbl">лучший зн/мин</span>
+      </div>
+      <div class="hero-stat">
+        <span class="hs-val">{{ stats['avg_wpm'] or 0 }}</span>
+        <span class="hs-lbl">средний зн/мин</span>
+      </div>
+      <div class="hero-stat">
+        <span class="hs-val">{{ stats['avg_acc'] or 0 }}%</span>
+        <span class="hs-lbl">точность</span>
+      </div>
+      <div class="hero-stat">
+        <span class="hs-val">{{ stats['total'] or 0 }}</span>
+        <span class="hs-lbl">тестов</span>
+      </div>
+      <div class="hero-stat">
+        <span class="hs-val">{{ stats['total_min'] or 0 }}</span>
+        <span class="hs-lbl">минут набора</span>
+      </div>
+    </div>
+    {% endif %}
+  </div>
+
+  <!-- Chart -->
+  {% if chart_wpm %}
+  <div class="card chart-card">
+    <h2 class="section-title">Прогресс</h2>
+    <div class="chart-wrap">
+      <canvas id="progressChart"></canvas>
+    </div>
+  </div>
+  {% endif %}
+
+  <!-- By level -->
+  {% if by_level %}
+  <div class="card">
+    <h2 class="section-title">По уровням сложности</h2>
+    <div class="level-stats-grid">
+      {% for row in by_level %}
+      <div class="level-stat-card level-{{ row['difficulty'] }}">
+        <div class="lsc-icon">{% if row['difficulty'] == 'easy' %}🌱{% elif row['difficulty'] == 'medium' %}⚡{% else %}🔥{% endif %}</div>
+        <div class="lsc-name">{% if row['difficulty'] == 'easy' %}Легко{% elif row['difficulty'] == 'medium' %}Средне{% else %}Сложно{% endif %}</div>
+        <div class="lsc-best">{{ row['best'] }} зн/мин</div>
+        <div class="lsc-sub">лучший результат</div>
+        <div class="lsc-avg">~{{ row['avg_wpm'] }} средний · {{ row['cnt'] }} тестов</div>
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+  {% endif %}
+
+  <!-- History -->
+  <div class="card">
+    <h2 class="section-title">Последние результаты</h2>
+    {% if history %}
+    <div class="history-table-wrap">
+      <table class="data-table">
+        <thead>
+          <tr>
+            <th>Время</th>
+            <th>Сложность</th>
+            <th>Зн/мин</th>
+            <th>Точность</th>
+            <th>Сек</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for r in history %}
+          <tr>
+            <td class="td-dim">{{ r['timestamp'][:16].replace('T',' ') }}</td>
+            <td>
+              <span class="diff-pill diff-{{ r['difficulty'] }}">
+                {% if r['difficulty'] == 'easy' %}🌱 Легко
+                {% elif r['difficulty'] == 'medium' %}⚡ Средне
+                {% else %}🔥 Сложно{% endif %}
+              </span>
+            </td>
+            <td class="td-wpm">{{ r['wpm'] }}</td>
+            <td>{{ r['accuracy'] }}%</td>
+            <td class="td-dim">{{ "%.1f"|format(r['time_sec']) }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% else %}
+    <p class="empty-state">Нет результатов. <a href="/">Пройди первый тест!</a></p>
+    {% endif %}
+  </div>
+
+  <div class="profile-actions">
+    <a href="/" class="btn btn-primary">▶ Новый тест</a>
+    <a href="/leaderboard" class="btn btn-ghost">Рейтинг</a>
+  </div>
+
+</div>
+{% endblock %}
+
+{% block scripts %}
+{% if chart_wpm %}
+<script>
+const ctx = document.getElementById('progressChart').getContext('2d');
+new Chart(ctx, {
+  type: 'line',
+  data: {
+    labels: {{ chart_labels | tojson }},
+    datasets: [{
+      label: 'Зн/мин',
+      data: {{ chart_wpm | tojson }},
+      borderColor: '#e8c547',
+      backgroundColor: 'rgba(232,197,71,0.1)',
+      borderWidth: 2,
+      pointBackgroundColor: '#e8c547',
+      pointRadius: 4,
+      tension: 0.3,
+      fill: true,
+    }]
+  },
+  options: {
+    responsive: true,
+    plugins: {
+      legend: { display: false },
+      tooltip: { mode: 'index', callbacks: {
+        label: ctx => ` ${ctx.parsed.y} зн/мин`
+      }}
+    },
+    scales: {
+      x: { ticks: { color: '#888', font: { family: 'JetBrains Mono' } }, grid: { color: '#222' } },
+      y: { ticks: { color: '#888', font: { family: 'JetBrains Mono' } }, grid: { color: '#222' }, beginAtZero: false }
+    }
+  }
+});
+</script>
+{% endif %}
+{% endblock %}

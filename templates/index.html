@@ -1,0 +1,267 @@
+{% extends "base.html" %}
+{% block title %}TypeRace — Тест скорости{% endblock %}
+
+{% block content %}
+<div class="test-page">
+
+  <!-- Stats bar -->
+  {% if stats and stats['total'] > 0 %}
+  <div class="mini-stats">
+    <div class="mini-stat"><span class="ms-val">{{ stats['best_wpm'] or 0 }}</span><span class="ms-lbl">лучший зн/мин</span></div>
+    <div class="mini-stat"><span class="ms-val">{{ stats['avg_wpm'] or 0 }}</span><span class="ms-lbl">средний зн/мин</span></div>
+    <div class="mini-stat"><span class="ms-val">{{ stats['avg_acc'] or 0 }}%</span><span class="ms-lbl">точность</span></div>
+    <div class="mini-stat"><span class="ms-val">{{ stats['total'] }}</span><span class="ms-lbl">тестов пройдено</span></div>
+  </div>
+  {% endif %}
+
+  <!-- Level picker -->
+  <div id="level-selection" class="card level-card">
+    <h1 class="test-title">Выберите сложность</h1>
+    <div class="level-buttons">
+      <button class="level-btn active" data-level="easy">
+        <span class="level-icon">🌱</span>
+        <span class="level-name">Легко</span>
+        <span class="level-desc">Простые слова и фразы</span>
+      </button>
+      <button class="level-btn" data-level="medium">
+        <span class="level-icon">⚡</span>
+        <span class="level-name">Средне</span>
+        <span class="level-desc">Сложнее, длиннее</span>
+      </button>
+      <button class="level-btn" data-level="hard">
+        <span class="level-icon">🔥</span>
+        <span class="level-name">Сложно</span>
+        <span class="level-desc">Терминология и латиница</span>
+      </button>
+    </div>
+    <button id="start-btn" class="btn btn-primary btn-lg">Начать тест</button>
+  </div>
+
+  <!-- Test area -->
+  <div id="test-area" class="card test-card hidden">
+    <div class="test-meta">
+      <span id="difficulty-badge" class="difficulty-badge"></span>
+      <div class="live-stats">
+        <span id="live-wpm" class="live-val">0</span><span class="live-lbl">зн/мин</span>
+        <span id="live-acc" class="live-val">100</span><span class="live-lbl">%</span>
+        <span id="live-time" class="live-val">0</span><span class="live-lbl">сек</span>
+      </div>
+    </div>
+
+    <!-- Countdown overlay -->
+    <div id="countdown-overlay" class="countdown-overlay hidden">
+      <span id="countdown-num">3</span>
+    </div>
+
+    <div id="source-text" class="source-text"></div>
+
+    <textarea id="user-input" class="user-input"
+              placeholder="Начни вводить текст..." disabled spellcheck="false"
+              autocomplete="off" autocorrect="off" autocapitalize="off"></textarea>
+
+    <div class="test-controls">
+      <button id="restart-btn" class="btn btn-ghost" onclick="resetTest()">↺ Заново</button>
+    </div>
+  </div>
+
+  <!-- Result card -->
+  <div id="result-card" class="card result-card hidden">
+    <h2 class="result-title">Тест завершён!</h2>
+    <div class="result-metrics">
+      <div class="metric">
+        <span class="metric-val" id="res-wpm">—</span>
+        <span class="metric-lbl">зн/мин</span>
+      </div>
+      <div class="metric">
+        <span class="metric-val" id="res-acc">—</span>
+        <span class="metric-lbl">точность %</span>
+      </div>
+      <div class="metric">
+        <span class="metric-val" id="res-time">—</span>
+        <span class="metric-lbl">секунд</span>
+      </div>
+    </div>
+    <div class="result-rank" id="result-rank"></div>
+    <div class="result-actions">
+      <button class="btn btn-primary" onclick="resetTest()">↺ Ещё раз</button>
+      <a href="/profile" class="btn btn-ghost">Мой профиль</a>
+      <a href="/leaderboard" class="btn btn-ghost">Рейтинг</a>
+    </div>
+  </div>
+
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+// ─── State ───────────────────────────────────────────────────────
+let selectedLevel = 'easy';
+let originalText = '';
+let textId = null;
+let startTime = null;
+let timerInterval = null;
+let spansArray = [];
+let totalTyped = 0;
+let totalErrors = 0;
+let testActive = false;
+
+// ─── Level selection ─────────────────────────────────────────────
+document.querySelectorAll('.level-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.level-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    selectedLevel = btn.dataset.level;
+  });
+});
+
+document.getElementById('start-btn').addEventListener('click', startTest);
+
+// ─── Start test ──────────────────────────────────────────────────
+async function startTest() {
+  const res = await fetch(`/start_test?level=${selectedLevel}`);
+  const data = await res.json();
+  originalText = data.text;
+  textId = data.text_id;
+
+  // Build spans
+  const sourceEl = document.getElementById('source-text');
+  sourceEl.innerHTML = '';
+  spansArray = [];
+  for (const ch of originalText) {
+    const s = document.createElement('span');
+    s.textContent = ch;
+    sourceEl.appendChild(s);
+    spansArray.push(s);
+  }
+
+  // Badge
+  const badges = { easy: '🌱 Легко', medium: '⚡ Средне', hard: '🔥 Сложно' };
+  document.getElementById('difficulty-badge').textContent = badges[selectedLevel];
+
+  // Reset counters
+  totalTyped = 0; totalErrors = 0;
+  document.getElementById('user-input').value = '';
+  document.getElementById('live-wpm').textContent = '0';
+  document.getElementById('live-acc').textContent = '100';
+  document.getElementById('live-time').textContent = '0';
+
+  // Show test area
+  document.getElementById('level-selection').classList.add('hidden');
+  document.getElementById('result-card').classList.add('hidden');
+  document.getElementById('test-area').classList.remove('hidden');
+
+  beginCountdown();
+}
+
+// ─── Countdown ───────────────────────────────────────────────────
+function beginCountdown() {
+  const overlay = document.getElementById('countdown-overlay');
+  const num = document.getElementById('countdown-num');
+  const input = document.getElementById('user-input');
+  input.disabled = true;
+  overlay.classList.remove('hidden');
+  let count = 3;
+  num.textContent = count;
+
+  const t = setInterval(() => {
+    count--;
+    if (count > 0) {
+      num.textContent = count;
+    } else {
+      clearInterval(t);
+      num.textContent = '▶';
+      setTimeout(() => {
+        overlay.classList.add('hidden');
+        startTime = Date.now();
+        testActive = true;
+        input.disabled = false;
+        input.focus();
+        input.addEventListener('input', handleInput);
+        timerInterval = setInterval(updateLiveStats, 250);
+      }, 300);
+    }
+  }, 800);
+}
+
+// ─── Handle input ────────────────────────────────────────────────
+function handleInput() {
+  const val = document.getElementById('user-input').value;
+  const idx = val.length - 1;
+
+  if (idx >= 0 && idx < spansArray.length) {
+    const typed = val[idx];
+    const expected = originalText[idx];
+    totalTyped++;
+    if (typed !== expected) {
+      totalErrors++;
+      spansArray[idx].className = 'char-error';
+    } else {
+      spansArray[idx].className = 'char-correct';
+    }
+    // Cursor highlight
+    spansArray.forEach((s, i) => s.classList.remove('char-cursor'));
+    if (idx + 1 < spansArray.length) spansArray[idx + 1].classList.add('char-cursor');
+  }
+
+  if (val.length === originalText.length) endTest();
+}
+
+// ─── Live stats ──────────────────────────────────────────────────
+function updateLiveStats() {
+  if (!testActive || !startTime) return;
+  const elapsed = (Date.now() - startTime) / 1000;
+  const wpm = elapsed > 0 ? Math.round((totalTyped / elapsed) * 60) : 0;
+  const acc = totalTyped > 0 ? Math.round(((totalTyped - totalErrors) / totalTyped) * 100) : 100;
+  document.getElementById('live-wpm').textContent = wpm;
+  document.getElementById('live-acc').textContent = acc;
+  document.getElementById('live-time').textContent = Math.round(elapsed);
+}
+
+// ─── End test ────────────────────────────────────────────────────
+function endTest() {
+  testActive = false;
+  clearInterval(timerInterval);
+  document.getElementById('user-input').removeEventListener('input', handleInput);
+  document.getElementById('user-input').disabled = true;
+
+  const elapsed = (Date.now() - startTime) / 1000;
+  const wpm = elapsed > 0 ? Math.round((totalTyped / elapsed) * 60) : 0;
+  const acc = totalTyped > 0 ? Math.round(((totalTyped - totalErrors) / totalTyped) * 100) : 100;
+
+  document.getElementById('res-wpm').textContent = wpm;
+  document.getElementById('res-acc').textContent = acc + '%';
+  document.getElementById('res-time').textContent = elapsed.toFixed(1) + 'с';
+
+  // Rank hint
+  const rank = document.getElementById('result-rank');
+  if (wpm >= 400) rank.textContent = '🏆 Скоростная легенда!';
+  else if (wpm >= 280) rank.textContent = '🔥 Профессионал!';
+  else if (wpm >= 180) rank.textContent = '⚡ Продвинутый пользователь';
+  else if (wpm >= 100) rank.textContent = '👍 Хороший результат';
+  else rank.textContent = '💪 Продолжай тренироваться!';
+
+  document.getElementById('test-area').classList.add('hidden');
+  document.getElementById('result-card').classList.remove('hidden');
+
+  // Save
+  fetch('/submit_result', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ wpm, accuracy: acc, time: elapsed.toFixed(2), text_id: textId, difficulty: selectedLevel })
+  });
+}
+
+// ─── Reset ───────────────────────────────────────────────────────
+function resetTest() {
+  testActive = false;
+  clearInterval(timerInterval);
+  const input = document.getElementById('user-input');
+  input.removeEventListener('input', handleInput);
+  input.value = '';
+  input.disabled = true;
+  document.getElementById('test-area').classList.add('hidden');
+  document.getElementById('result-card').classList.add('hidden');
+  document.getElementById('level-selection').classList.remove('hidden');
+}
+</script>
+{% endblock %}

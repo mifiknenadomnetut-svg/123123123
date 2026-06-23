@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Войти — TypeRace</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;700&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body class="auth-page">
+
+<div class="auth-card">
+  <a href="/" class="auth-logo">TYPE<span>RACE</span></a>
+  <p class="auth-sub">Войди, чтобы соревноваться</p>
+
+  {% with messages = get_flashed_messages(with_categories=true) %}
+    {% for cat, msg in messages %}
+      <div class="flash flash--{{ cat }}">{{ msg }}</div>
+    {% endfor %}
+  {% endwith %}
+
+  <form method="POST" action="/login" class="auth-form">
+    <div class="form-group">
+      <label>Имя пользователя</label>
+      <input type="text" name="username" autocomplete="username" required placeholder="user123">
+    </div>
+    <div class="form-group">
+      <label>Пароль</label>
+      <input type="password" name="password" autocomplete="current-password" required placeholder="••••••••">
+    </div>
+    <button type="submit" class="btn btn-primary btn-full">Войти</button>
+  </form>
+  <p class="auth-switch">Нет аккаунта? <a href="/register">Зарегистрироваться</a></p>
+</div>
+
+</body>
+</html>
